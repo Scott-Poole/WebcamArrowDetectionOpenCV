@@ -26,6 +26,40 @@
             }
         }
 
+        sliders = []
+        function addSlider(desc, min, max, val){
+            if(min > max || val > max || val < min){
+                console.log('Tried to create slider with bad min,max,value. Returning')
+                return
+            }
+            let div = document.createElement('div')
+            let label = document.createElement('label')
+            let slider = document.createElement('input')
+            slider.setAttribute('name',desc)
+            slider.setAttribute('type','range')
+            slider.setAttribute('min',min)
+            slider.setAttribute('max',max)
+            slider.setAttribute('value',val)
+
+            label.textContent = desc+' : '+val
+
+            document.body.appendChild(div)
+            div.appendChild(slider)
+            div.appendChild(label)
+            
+            slider.addEventListener('input', (event) =>{
+                let labels = event.target.parentElement.getElementsByTagName('label')
+                if(labels.length == 0){
+                    console.log('Slider input updated, but no label? Returning')
+                    return
+                }
+                labels[0].textContent = event.target.name+' : '+event.target.value
+            })
+            
+
+            sliders.push(slider)
+        }
+
         navigator.getUserMedia = (
             navigator.getUserMedia ||
             navigator.webkitGetUserMedia ||
@@ -48,6 +82,21 @@
             video.play()
 
             setupCanvases(width,height)
+
+            //setup sliders for adjusting opencv params
+            //bilat filter
+            addSlider('PixelSize', 1, 64, 7)
+            addSlider('SigmaColor', 0, 255, 50)
+            addSlider('PixelSize', 0, 255, 50)
+            //Canny
+            addSlider('Thresh1', 0, 255, 20)
+            addSlider('Thresh2', 0, 255, 60)
+            //HoughLines
+            addSlider('Rho', 1, 255, 1)
+            addSlider('Theta', 1, 360, 180)
+            addSlider('Thresh', 0, 64, 2)
+            addSlider('Srn', 0, 255, 0)
+            addSlider('Stn', 0, 255, 0)
             
         },
         // fail callback
@@ -56,6 +105,7 @@
         }
         );
 
+        //main processing loop.
         function processFrame(timestamp){
             let ctx = canvasArr[0].getContext('2d')
             ctx.drawImage(video, 0, 0, canvasArr[0].width, canvasArr[0].height)
@@ -71,15 +121,15 @@
             cv.imshow(canvasArr[1].id, mat)
 
             //bilateral filter
-            cv.bilateralFilter(mat, temp_mat, 7, 50, 50, cv.BORDER_DEFAULT) // cv.bilateralFilter( src, dst, d, sigmaColor, sigmaSpace[, dst[, borderType]] )
+            cv.bilateralFilter(mat, temp_mat, parseInt(sliders[0].value), parseInt(sliders[1].value), parseInt(sliders[2].value), cv.BORDER_DEFAULT) // cv.bilateralFilter( src, dst, d, sigmaColor, sigmaSpace[, dst[, borderType]] )
             cv.imshow(canvasArr[2].id, temp_mat)
 
             //Canny
-            cv.Canny(temp_mat, mat, 60, 120, 3)
+            cv.Canny(temp_mat, mat, parseInt(sliders[3].value), parseInt(sliders[4].value), 3)
             cv.imshow(canvasArr[3].id, mat)
 
             //Hough Lines
-            cv.HoughLinesP(mat, lines, 1, Math.PI / 180, 2, 0, 0);
+            cv.HoughLinesP(mat, lines, parseInt(sliders[5].value), Math.PI / parseInt(sliders[6].value), parseInt(sliders[7].value), parseInt(sliders[8].value), parseInt(sliders[9].value));
 
             // draw lines 
             for (let i = 0; i < lines.rows; ++i) {
