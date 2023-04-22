@@ -5,17 +5,26 @@
     <title>WebCam Computer Vision</title>
     </head>
 <body>
-    <video id="webcamVideo" muted></video>
-    <canvas id="webcamCanvas"></canvas>
-    <canvas id="greyCanvas"></canvas>
     <script src="opencv.js" type="text/javascript"></script>
     <script type="text/javascript">
-        const video = document.getElementById('webcamVideo');
-        const canvas = document.getElementById('webcamCanvas');
-        const gray = document.getElementById('grayCanvas');
-        const ctx = canvas.getContext("2d");
+        
+        const video = document.createElement('video')
+        video.setAttribute('id','webcamVideo')
+        video.setAttribute('muted','true')
 
-        let webcamWidth = 0, webcamHeight = 0
+        let canvasNum = 5
+        let canvasArr = []
+        
+        function setupCanvases(width, height){
+            for(let i = 0; i < canvasNum; i++){
+                let canvas = document.createElement('canvas')
+                canvas.setAttribute('id', 'canvas'+i)
+                canvas.setAttribute('width', width)
+                canvas.setAttribute('height', height)
+                document.body.appendChild(canvas)
+                canvasArr.push(canvas)
+            }
+        }
 
         navigator.getUserMedia = (
             navigator.getUserMedia ||
@@ -38,11 +47,7 @@
             video.srcObject = stream
             video.play()
 
-            webcamWidth = width
-            webcamHeight = height
-
-            canvas.setAttribute('width', width);
-            canvas.setAttribute('height', height);
+            setupCanvases(width,height)
             
         },
         // fail callback
@@ -52,26 +57,49 @@
         );
 
         function processFrame(timestamp){
-            
-            ctx.drawImage(video, 0, 0, webcamWidth, webcamHeight);
-            //let data = canvas.toDataURL("image/png");
-            let src = cv.imread("webcamCanvas");
-            //console.log(src)
-//
-            //let dst = cv.Mat.zeros(src.rows, src.cols, cv.CV_8UC3);  //cv.CV_8UC3
-            //let dst2 = cv.Mat.zeros(src.rows, src.cols, cv.CV_8UC3);  //cv.CV_8UC3
-            //let lines = new cv.Mat();
-            //let colour = new cv.Scalar(200, 150, 150);  // colour do draw output in
-//
-            cv.cvtColor(src, src, cv.COLOR_RGBA2GRAY);  //  Convert the input image to grayscale.
-            cv.imshow("greyCanvas", src);
+            let ctx = canvasArr[0].getContext('2d')
+            ctx.drawImage(video, 0, 0, canvasArr[0].width, canvasArr[0].height)
 
-            window.requestAnimationFrame(processFrame);           
+            let mat = cv.imread(canvasArr[0].id)
+            let temp_mat = cv.Mat.zeros(mat.rows, mat.cols, cv.CV_8UC3)
+            let temp_mat2 = cv.Mat.zeros(mat.rows, mat.cols, cv.CV_8UC3)
+            let lines = new cv.Mat()
+            let color = new cv.Scalar(200, 150, 150)
+            
+            //Gray scale
+            cv.cvtColor(mat, mat, cv.COLOR_RGBA2GRAY)
+            cv.imshow(canvasArr[1].id, mat)
+
+            //bilateral filter
+            cv.bilateralFilter(mat, temp_mat, 7, 50, 50, cv.BORDER_DEFAULT) // cv.bilateralFilter( src, dst, d, sigmaColor, sigmaSpace[, dst[, borderType]] )
+            cv.imshow(canvasArr[2].id, temp_mat)
+
+            //Canny
+            cv.Canny(temp_mat, mat, 60, 120, 3)
+            cv.imshow(canvasArr[3].id, mat)
+
+            //Hough Lines
+            cv.HoughLinesP(mat, lines, 1, Math.PI / 180, 2, 0, 0);
+
+            // draw lines 
+            for (let i = 0; i < lines.rows; ++i) {
+                let startPoint = new cv.Point(lines.data32S[i * 4], lines.data32S[i * 4 + 1])
+                let endPoint = new cv.Point(lines.data32S[i * 4 + 2], lines.data32S[i * 4 + 3])
+                cv.line(temp_mat2, startPoint, endPoint, color)
+            }
+            cv.imshow(canvasArr[4].id, temp_mat2)
+
+            mat.delete()
+            temp_mat.delete()
+            temp_mat2.delete()
+            lines.delete()
+
+            window.requestAnimationFrame(processFrame)         
         }
 
         video.addEventListener('play',(event) =>{
             console.log('Webcam started playing to video element')
-            window.requestAnimationFrame(processFrame);
+            window.requestAnimationFrame(processFrame)
         })
 
     </script>
